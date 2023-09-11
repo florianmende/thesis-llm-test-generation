@@ -1,0 +1,16 @@
+.Java_Projects/
+
+# Python-specific files and directories
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore project settings (PyCharm, VSCode, etc.)
+.idea/
+.vscode/
+*.code-workspace
+*.iml
+
+# Ignore system-specific files
+.DS_Store
