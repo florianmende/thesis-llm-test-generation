@@ -35,20 +35,28 @@ class FileSystemParser:
             exception_message = "The folder " + self.folder_path + " does not exist."
             raise Exception(exception_message)
 
-        java_files = []
-        for root, dirs, files in os.walk(self.folder_path):
-            for file in files:
-                # filter out non-java files as well as files containing "Test" in their name to avoid test files
-                if file.endswith(".java") and "Test" not in file:
-                    java_files.append(os.path.join(root, file))
+        projects = self._parse_folder()
 
-        if len(java_files) == 0:
-            exception_message = "No Java files found in the folder " + self.folder_path + "."
-            raise Exception(exception_message)
+        for project_name in projects:
+            project = projects[project_name]
 
-        print("Total Java files found: " + str(len(java_files)) + " (excluding test files).")
+            java_files = []
 
-        return java_files
+            for root, dirs, files in os.walk(project["path"]):
+                for file in files:
+                    # filter out non-java files as well as files containing "Test" in their name to avoid test files
+                    if file.endswith(".java") and "Test" not in file:
+                        java_files.append(os.path.join(root, file))
+
+            if len(java_files) == 0:
+                exception_message = "No Java files found in the folder " + self.folder_path + "."
+                raise Exception(exception_message)
+
+            print("Total Java files found: " + str(len(java_files)) + " (excluding test files).")
+
+            projects[project_name]["files"] = java_files
+
+        return projects
 
     def _parse_folder(self):
         """
@@ -82,6 +90,3 @@ class FileSystemParser:
             projects[project_name] = {"path": project_path, "files": []}
 
         return projects
-
-    def parse_java_file(self, path):
-        pass
