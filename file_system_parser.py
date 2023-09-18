@@ -45,14 +45,16 @@ class FileSystemParser:
             for root, dirs, files in os.walk(project["path"]):
                 for file in files:
                     # filter out non-java files as well as files containing "Test" in their name to avoid test files
-                    if file.endswith(".java") and "Test" not in file:
+                    # filter out all files located in a "test" folder to avoid test files
+                    if file.endswith(".java") and "Test" not in file and not "test" in root.split(os.sep):
                         java_files.append(os.path.join(root, file))
 
             if len(java_files) == 0:
                 exception_message = "No Java files found in the folder " + self.folder_path + "."
                 raise Exception(exception_message)
 
-            print("Total Java files found: " + str(len(java_files)) + " (excluding test files).")
+            print("Found " + str(len(java_files)) + " Java file(s) in the project " + project_name +
+                  " (excluding test files).")
 
             projects[project_name]["files"] = java_files
 
@@ -82,7 +84,9 @@ class FileSystemParser:
             exception_message = "No Java projects found in the folder " + folder_path + "."
             raise Exception(exception_message)
 
-        print("Total Java projects found: " + str(len(project_names)) + ".")
+        print("Found " + str(len(project_names)) + " Java project(s):")
+        print("\n".join(project_names))
+        print("\n")
 
         projects = {}
         for project_name in project_names:
