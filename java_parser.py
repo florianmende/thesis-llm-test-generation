@@ -435,7 +435,7 @@ class JavaCodeParser:
         """
         if not os.path.exists(f"./build/class_parser/{project_name}/{class_identifier}"):
             os.makedirs(f"./build/class_parser/{project_name}/{class_identifier}")
-        with open(f"./build/class_parser/{project_name}/{class_identifier}/{class_identifier}.json", "w") as file:
+        with open(f"./build/class_parser/{project_name}/{class_identifier}/class.json", "w") as file:
             file.write(json.dumps(class_output_list))
 
     @staticmethod
