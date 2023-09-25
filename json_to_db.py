@@ -33,7 +33,8 @@ for project_name in os.listdir("./build/class_parser"):
                                 project_name,
                                 class_dict["class_modifier"],
                                 class_dict["class_super_interfaces"],
-                                class_dict["class_full_text"])
+                                class_dict["class_full_text"],
+                                class_dict["class_header"])
 
                 for var in class_dict["class_variable_declarations"]:
                     db.insert_class_variable(class_dict["class_identifier"],

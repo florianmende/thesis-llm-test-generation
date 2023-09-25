@@ -3,7 +3,7 @@ import sqlite3
 
 class DataBase:
 
-    def __init__(self):
+    def __init__(self, db_path: str = './build/db/projects.db'):
         self.conn = sqlite3.connect('./build/db/projects.db')
         self.cursor = self.conn.cursor()
 
@@ -29,6 +29,7 @@ class DataBase:
                     classModifier TEXT,
                     classSuperInterface TEXT,
                     fullText TEXT NOT NULL,
+                    classHeader TEXT,
                     FOREIGN KEY (projectName) REFERENCES projects(projectName)
                 )""")
 
@@ -73,12 +74,14 @@ class DataBase:
         self.conn.commit()
 
     def insert_project(self, project_name):
-        self.cursor.execute("INSERT INTO projects VALUES (?)", (project_name, ))
+        self.cursor.execute("INSERT INTO projects VALUES (?)", (project_name,))
         self.conn.commit()
 
-    def insert_class(self, class_identifier, project_name, class_modifier, class_super_interface, full_text):
-        self.cursor.execute("INSERT INTO classes VALUES (?, ?, ?, ?, ?)",
-                            (class_identifier, project_name, class_modifier, class_super_interface, full_text))
+    def insert_class(self, class_identifier, project_name, class_modifier, class_super_interface, full_text,
+                     class_header):
+        self.cursor.execute("INSERT INTO classes VALUES (?, ?, ?, ?, ?, ?)",
+                            (class_identifier, project_name, class_modifier, class_super_interface, full_text,
+                             class_header))
         self.conn.commit()
 
     def insert_class_variable(self, class_identifier, variable_identifier, variable_type):
@@ -108,7 +111,8 @@ class DataBase:
         self.conn.commit()
 
     def get_method_id(self, method_identifier, class_identifier):
-        self.cursor.execute("SELECT methodId FROM methods WHERE methodIdentifier=? AND classIdentifier =?", (method_identifier, class_identifier))
+        self.cursor.execute("SELECT methodId FROM methods WHERE methodIdentifier=? AND classIdentifier =?",
+                            (method_identifier, class_identifier))
         result = self.cursor.fetchone()
         if result is None:
             return None
@@ -116,8 +120,45 @@ class DataBase:
 
     def get_class_id(self, class_identifier):
         # return class id or None if class does not exist
-        self.cursor.execute("SELECT classIdentifier FROM classes WHERE classIdentifier=?", (class_identifier, ))
+        self.cursor.execute("SELECT classIdentifier FROM classes WHERE classIdentifier=?", (class_identifier,))
         result = self.cursor.fetchone()
         if result is None:
             return None
         return result[0]
+
+    def get_method_by_id(self, method_id):
+        self.cursor.execute("SELECT * FROM methods WHERE methodId=?", (method_id,))
+        result = self.cursor.fetchone()
+        if result:
+            column_names = [description[0] for description in self.cursor.description]
+            result_dict = dict(zip(column_names, result))
+            return result_dict
+        return None
+
+    def get_related_methods_of_method(self, method_id):
+        self.cursor.execute(""" SELECT *
+                                FROM methods
+                                JOIN relatedMethodsOfMethod ON methods.methodId = relatedMethodsOfMethod.methodIdSource
+                                WHERE relatedMethodsOfMethod.methodIdSource = ?""", (method_id,))
+        result = self.cursor.fetchall()
+        result_list = []
+        for row in result:
+            column_names = [description[0] for description in self.cursor.description]
+            result_dict = dict(zip(column_names, row))
+            result_list.append(result_dict)
+        return result_list
+
+    def get_related_classes_of_method(self, method_id):
+        self.cursor.execute("""SELECT * 
+                             FROM classes 
+                             INNER JOIN relatedClassesOfMethod 
+                             ON classes.classIdentifier = relatedClassesOfMethod.classIdentifier 
+                             WHERE relatedClassesOfMethod.methodId = ?"""
+                            , (method_id,))
+        result = self.cursor.fetchall()
+        result_list = []
+        for row in result:
+            column_names = [description[0] for description in self.cursor.description]
+            result_dict = dict(zip(column_names, row))
+            result_list.append(result_dict)
+        return result_list

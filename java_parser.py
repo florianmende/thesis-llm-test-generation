@@ -154,24 +154,18 @@ class JavaCodeParser:
         class_super_interfaces = [item.text for item in class_node.children if item.type == "super_interfaces"]
         class_super_interfaces = class_super_interfaces[0].decode("utf-8") if class_super_interfaces else ""
 
-
-
-
         class_body = [item for item in class_node.children if item.type == "class_body"][0]
 
         class_constructors = JavaCodeParser.extract_class_constructors(class_node)
 
-        # class_header contains the definition of class specific variables and comments before the constructor
-        # The correct length of the class_header is determined by the start
-        # byte of the class body and the start byte constructor declaration.
-        class_header = ""
-        class_header_start_byte = class_node.start_byte
+        # class header contains everything from the start of the class until the last constructor declaration
         class_header_end_byte = None
+        # reverse to get the last constructor declaration
         for node in class_body.children:
             if node.type == "constructor_declaration":
-                class_header_end_byte = node.start_byte
+                class_header_end_byte = node.end_byte - class_node.start_byte
 
-        # class_header = file_content[class_header_start_byte:class_header_end_byte]
+        class_header = class_node.text[0:class_header_end_byte].decode("utf-8")
 
         class_full_text = class_node.text.decode("utf-8")
 
@@ -185,7 +179,7 @@ class JavaCodeParser:
                                                                   class_modifier,
                                                                   class_super_interfaces,
                                                                   class_constructors,
-                                                                  # class_header,
+                                                                  class_header,
                                                                   class_full_text,
                                                                   class_methods,
                                                                   class_variable_declarations)
@@ -231,6 +225,7 @@ class JavaCodeParser:
             "constructor_identifier": "ConstructorName",
             "constructor_parameter_types": ["param_type1", "param_type2", ...],
             "related_classes": ["related_class1", "related_class2", ...]
+            "constructor_full_text": "full_text_of_constructor"
             }, ...]
         :param class_node: A class node produced by tree-sitter.
         :return: Class constructors.
@@ -242,11 +237,13 @@ class JavaCodeParser:
         for constructor in class_constructors:
             constructor_information = JavaCodeParser.extract_method_identifier_parameter_types(constructor)
             constructor_related_classes = JavaCodeParser.extract_related_classes_of_method(constructor)
+            constructor_full_text = constructor.text.decode("utf-8")
 
             class_constructors_output.append({
                 "constructor_identifier": constructor_information["method_identifier"],
                 "constructor_parameter_types": constructor_information["method_parameter_types"],
-                "related_classes": constructor_related_classes
+                "related_classes": constructor_related_classes,
+                "constructor_full_text": constructor_full_text
             })
 
         return class_constructors_output
@@ -382,7 +379,7 @@ class JavaCodeParser:
 
     @staticmethod
     def construct_class_output_dict(filepath, class_identifier, class_modifier, class_super_interfaces,
-                                    class_constructors, class_full_text, class_methods, class_variable_declarations):
+                                    class_constructors, class_header, class_full_text, class_methods, class_variable_declarations):
         """
         This method constructs a dictionary with all relevant information about a class.
         :param filepath: Filepath of the Java file that was parsed.
@@ -402,7 +399,7 @@ class JavaCodeParser:
             "class_modifier": class_modifier,
             "class_super_interfaces": class_super_interfaces,
             "class_constructors": class_constructors,
-            # "class_header": class_header,
+            "class_header": class_header,
             "class_full_text": class_full_text,
             "class_methods": class_methods,
             "class_variable_declarations": class_variable_declarations
