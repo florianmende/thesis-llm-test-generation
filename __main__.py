@@ -1,21 +1,26 @@
 from file_system_parser import FileSystemParser
 from java_parser import JavaCodeParser
+from utils import print_progress_bar, get_user_choices
 
 
 def main():
     parser = FileSystemParser("./Java_Projects")
     files = parser.parse()
 
-    # parser.parse()["jfreechart"]["files"][0]
-    # EXAMPLE_FILE = "Java_Projects/jfreechart/src/main/java/org/jfree/chart/annotations/AbstractAnnotation.java"
-
     my_java_parser = JavaCodeParser()
 
-    for project in files:
+    print("\n")
+
+    choice = get_user_choices([project for project in files], "Choose projects to parse: ")
+
+    for project in [project for project in files if project in choice]:
+        n_files = len(files[project]["files"])
+        curr_file = 1
         for file in files[project]["files"]:
             my_java_parser.parse_file(file, project)
-
-    # my_java_parser.parse_file(EXAMPLE_FILE, "jfreechart")
+            print_progress_bar(curr_file, n_files, prefix="Parsing files in project: {}".format(project),
+                               display_100_percent=True)
+            curr_file += 1
 
 
 if __name__ == "__main__":

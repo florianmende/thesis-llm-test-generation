@@ -3,8 +3,8 @@ import sqlite3
 
 class DataBase:
 
-    def __init__(self, db_path: str = './build/db/projects.db'):
-        self.conn = sqlite3.connect('./build/db/projects.db')
+    def __init__(self, db_name):
+        self.conn = sqlite3.connect('./build/db/' + db_name + '.db')
         self.cursor = self.conn.cursor()
 
     def reset(self):

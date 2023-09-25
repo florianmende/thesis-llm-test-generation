@@ -7,11 +7,11 @@ from langchain.prompts.chat import SystemMessagePromptTemplate, HumanMessageProm
 
 class PromptConstructor:
 
-    def __init__(self):
+    def __init__(self, db_name):
         """
         This class is responsible for constructing the prompt for the LLM given a reference to a method in the database
         """
-        self.db = DataBase('./build/db/projects.db')
+        self.db = DataBase(db_name)
 
     def prompt(self, method_id):
         pass

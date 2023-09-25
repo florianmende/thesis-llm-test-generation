@@ -116,7 +116,7 @@ class JavaCodeParser:
             method_full_text = method.text.decode("utf-8")
 
             # add comments to the method declarations if they precede the method declaration
-            if method.prev_named_sibling.type == "comment" or method.prev_named_sibling.type == "block_comment":
+            if method.prev_named_sibling is not None and (method.prev_named_sibling.type == "comment" or method.prev_named_sibling.type == "block_comment"):
                 method_full_text = method.prev_named_sibling.text.decode("utf-8") + "\n" + method_full_text
 
             related_classes = JavaCodeParser.extract_related_classes_of_method(method)

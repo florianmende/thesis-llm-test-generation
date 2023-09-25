@@ -2,14 +2,13 @@ from db import DataBase
 import os
 import json
 
-db = DataBase()
-
-db.reset()
-
-db.create_tables()
-
 # loop over all projects
 for project_name in os.listdir("./build/class_parser"):
+    # create new database for every project for faster querying and avoiding conflicts between projects
+    db = DataBase(project_name)
+    db.reset()
+    db.create_tables()
+
     # insert project
     db.insert_project(str(project_name))
 
