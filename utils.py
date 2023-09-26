@@ -2,7 +2,17 @@ import sys
 import time
 
 
-def print_progress_bar(iteration, total, prefix='', length=50, fill='█', display_100_percent=False):
+def print_progress_bar(iteration: int, total, prefix: str = '', length=50, fill='█', display_100_percent=False):
+    """
+    Call in a loop to create terminal progress bar
+    :param iteration: current iteration
+    :param total: total iterations
+    :param prefix: String to print at the beginning of the bar
+    :param length: character length of bar
+    :param fill: bar fill character
+    :param display_100_percent: whether to display to full bar after it reaches 100%
+    :return:
+    """
     percent = ("{:.1f}").format(100 * (iteration / float(total)))
     filled_length = int(length * iteration // total)
     bar = fill * filled_length + '-' * (length - filled_length)

@@ -1,6 +1,7 @@
 from file_system_parser import FileSystemParser
 from java_parser import JavaCodeParser
 from utils import print_progress_bar, get_user_choices
+from json_to_db import convert_json_to_db
 
 
 def main():
@@ -21,6 +22,8 @@ def main():
             print_progress_bar(curr_file, n_files, prefix="Parsing files in project: {}".format(project),
                                display_100_percent=True)
             curr_file += 1
+
+    convert_json_to_db(choice)
 
 
 if __name__ == "__main__":
