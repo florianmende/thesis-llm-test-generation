@@ -25,8 +25,6 @@ def print_progress_bar(iteration: int, total, prefix: str = '', length=50, fill=
 
     if iteration == total and display_100_percent:
         sys.stdout.write('\n')  # Move to the next line for 100% display
-    elif iteration != total:
-        sys.stdout.write('\r')  # Move back to the beginning of the line
 
     sys.stdout.flush()
 

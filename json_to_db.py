@@ -48,7 +48,9 @@ def convert_json_to_db(project_names: str):
                                     class_dict["class_modifier"],
                                     class_dict["class_super_interfaces"],
                                     class_dict["class_full_text"],
-                                    class_dict["class_header"])
+                                    class_dict["class_header"],
+                                    class_dict["imports"],
+                                    class_dict["package"])
 
                     for var in class_dict["class_variable_declarations"]:
                         db.insert_class_variable(class_dict["class_identifier"],

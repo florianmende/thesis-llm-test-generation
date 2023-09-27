@@ -30,6 +30,8 @@ class DataBase:
                     classSuperInterface TEXT,
                     fullText TEXT NOT NULL,
                     classHeader TEXT,
+                    imports TEXT,
+                    package TEXT,
                     FOREIGN KEY (projectName) REFERENCES projects(projectName)
                 )""")
 
@@ -78,10 +80,10 @@ class DataBase:
         self.conn.commit()
 
     def insert_class(self, class_identifier, project_name, class_modifier, class_super_interface, full_text,
-                     class_header):
-        self.cursor.execute("INSERT INTO classes VALUES (?, ?, ?, ?, ?, ?)",
+                     class_header, imports, package):
+        self.cursor.execute("INSERT INTO classes VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                             (class_identifier, project_name, class_modifier, class_super_interface, full_text,
-                             class_header))
+                             class_header, imports, package))
         self.conn.commit()
 
     def insert_class_variable(self, class_identifier, variable_identifier, variable_type):
@@ -162,3 +164,17 @@ class DataBase:
             result_dict = dict(zip(column_names, row))
             result_list.append(result_dict)
         return result_list
+
+    def get_imports_of_class(self, class_identifier):
+        self.cursor.execute("SELECT imports FROM classes WHERE classIdentifier=?", (class_identifier,))
+        result = self.cursor.fetchone()
+        if result:
+            return result[0]
+        return None
+
+    def get_package_of_class(self, class_identifier):
+        self.cursor.execute("SELECT package FROM classes WHERE classIdentifier=?", (class_identifier,))
+        result = self.cursor.fetchone()
+        if result:
+            return result[0]
+        return None

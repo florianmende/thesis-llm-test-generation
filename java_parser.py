@@ -56,6 +56,7 @@ class JavaCodeParser:
         # get all imports
         # has do be done here, as there is no access to the imports on a class level
         imports = JavaCodeParser.extract_import_declarations(tree)
+        package_name = JavaCodeParser.extract_package_name(tree)
 
         # extract metadata for each class in the file and extract methods of the class
         class_output_list = []
@@ -64,7 +65,7 @@ class JavaCodeParser:
             if JavaCodeParser.is_test_class(class_node):
                 continue
 
-            class_output = JavaCodeParser.extract_class_information(class_node, filepath)
+            class_output = JavaCodeParser.extract_class_information(class_node, filepath, imports, package_name)
             method_output = JavaCodeParser.extract_all_method_information(class_node, class_output["class_identifier"],
                                                                           filepath)
 
@@ -137,12 +138,14 @@ class JavaCodeParser:
         return method_output_list
 
     @staticmethod
-    def extract_class_information(class_node, filepath):
+    def extract_class_information(class_node, filepath, imports, package_name):
         """
         This method extracts information about a class including its identifier, modifiers, super interfaces,
         related classes and constructors.
         :param class_node: A class node produced by tree-sitter.
         :param filepath: Filepath of the Java file the class belongs to.
+        :param imports: String of all imports of the Java file the class belongs to.
+        :param package_name: Name of the package the class belongs to.
         :return: Dictionary containing all relevant information.
         """
         class_identifier = [item.text for item in class_node.children if item.type == "identifier"][0] \
@@ -182,7 +185,9 @@ class JavaCodeParser:
                                                                   class_header,
                                                                   class_full_text,
                                                                   class_methods,
-                                                                  class_variable_declarations)
+                                                                  class_variable_declarations,
+                                                                  imports,
+                                                                  package_name)
 
         return class_output
 
@@ -273,10 +278,12 @@ class JavaCodeParser:
         """
         This method extracts all import declarations of a Java file.
         :param tree_node: Tree returned by the tree-sitter parser.
-        :return: List of import declarations.
+        :return: Single string of import declarations.
         """
-        imports = [node for node in tree_node.root_node.children if node.type == "import_declaration"]
-        return imports
+        import_declarations = [node.text.decode("utf-8") for node in tree_node.root_node.children if
+                               node.type == "import_declaration"]
+        import_declarations = "\n".join(import_declarations)
+        return import_declarations
 
     @staticmethod
     def extract_classes_of_tree(tree_node):
@@ -379,7 +386,8 @@ class JavaCodeParser:
 
     @staticmethod
     def construct_class_output_dict(filepath, class_identifier, class_modifier, class_super_interfaces,
-                                    class_constructors, class_header, class_full_text, class_methods, class_variable_declarations):
+                                    class_constructors, class_header, class_full_text, class_methods,
+                                    class_variable_declarations, imports, package_name):
         """
         This method constructs a dictionary with all relevant information about a class.
         :param filepath: Filepath of the Java file that was parsed.
@@ -391,6 +399,8 @@ class JavaCodeParser:
         :param class_full_text: Full text of the class.
         :param class_methods: List of dictionaries containing all relevant information about the methods of the class.
         :param class_variable_declarations: List of dictionaries containing class level variable declarations.
+        :param imports: String containing all imports of the class.
+        :param package_name: Name of the package the class belongs to.
         :return:
         """
         class_output = {
@@ -402,7 +412,9 @@ class JavaCodeParser:
             "class_header": class_header,
             "class_full_text": class_full_text,
             "class_methods": class_methods,
-            "class_variable_declarations": class_variable_declarations
+            "class_variable_declarations": class_variable_declarations,
+            "imports": imports,
+            "package": package_name
         }
 
         return class_output
@@ -530,3 +542,16 @@ class JavaCodeParser:
             variable_declarations[variable_name] = variable_type
 
         return variable_declarations
+
+
+    @staticmethod
+    def extract_package_name(tree_node):
+        """
+        This method extracts the package name of the project.
+        :param tree: AST of the project.
+        :return: Package name of the project.
+        """
+        package_declarations = [node.text.decode("utf-8") for node in tree_node.root_node.children if
+                               node.type == "package_declaration"]
+        package_declarations = "\n".join(package_declarations)
+        return package_declarations

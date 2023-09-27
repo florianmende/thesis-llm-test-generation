@@ -22,6 +22,8 @@ class PromptConstructor:
         class_name = method["classIdentifier"]
         related_methods = self.db.get_related_methods_of_method(method_id)
         related_classes = self.db.get_related_classes_of_method(method_id)
+        imports = self.db.get_imports_of_class(class_name)
+        package = self.db.get_package_of_class(class_name)
 
         related_methods_formatted = self.construct_code_prompt_from_dict_list(related_methods, "java", True)
         related_classes_formatted = self.construct_code_prompt_from_dict_list(related_classes, "java", False)
@@ -31,9 +33,10 @@ class PromptConstructor:
         while size <= 3 and self.check_token_limit(
                 self._generate_prompts_with_different_size(size, method_name, class_name, method,
                                                            related_methods_formatted,
-                                                           related_classes_formatted)):
+                                                           related_classes_formatted, imports, package)):
             prompt = self._generate_prompts_with_different_size(size, method_name, class_name, method,
-                                                                related_methods_formatted, related_classes_formatted)
+                                                                related_methods_formatted, related_classes_formatted,
+                                                                imports, package)
             size += 1
 
         return prompt
@@ -105,7 +108,9 @@ class PromptConstructor:
                                               class_name: str,
                                               method: dict,
                                               related_methods_formatted: str,
-                                              related_classes_formatted: str, ):
+                                              related_classes_formatted: str,
+                                              imports: str,
+                                              package: str):
 
         system_prompt = """
 You are an expert programming assistant with attention to detail who wants to help other humans by writing \
@@ -130,8 +135,14 @@ Always add necessary assertions to the test method.
 Generate a unit test for the following method:
 Method: {method_name}
 Class: {class_name}
-Method code: {method_code}
+Package: {package}
+Imports: 
+{imports}
 
+Method code: 
+{method_code}
+
+Generate a unit test for the specified method!
 Assistant: 
 ```java
                         """
@@ -144,6 +155,8 @@ Assistant:
                 method_code=method["fullText"],
                 testing_framework="JUnit 5",
                 mocking_framework="Mockito",
+                package=package,
+                imports=imports
             )
 
         elif size == 2:
@@ -157,7 +170,12 @@ Assistant:
 Generate a unit test for the following method:
 Method: {method_name}
 Class: {class_name}
-Method code: {method_code}
+Package: {package}
+Imports: 
+{imports}
+
+Method code: 
+{method_code}
 
 Here is some additional code that might be useful:
 
@@ -165,6 +183,7 @@ Related methods:
 
 {related_methods}
 
+Generate a unit test for the specified method!
 Assistant:
 ```java
                         """
@@ -177,7 +196,9 @@ Assistant:
                 method_code=method["fullText"],
                 testing_framework="JUnit 5",
                 mocking_framework="Mockito",
-                related_methods=related_methods_formatted
+                related_methods=related_methods_formatted,
+                package=package,
+                imports=imports
             )
 
         elif size == 3 or size == 4:
@@ -191,7 +212,13 @@ Assistant:
 Generate a unit test for the following method:
 Method: {method_name}
 Class: {class_name}
-Method code: {method_code}
+Package: {package}
+Imports: 
+{imports}
+
+Method code: 
+{method_code}
+
 
 Here is some additional code that might be useful:
 
@@ -203,7 +230,7 @@ Related classes:
 
 {related_classes}
 
-
+Generate a unit test for the specified method!
 Assistant:
 ```java
                         """
@@ -218,4 +245,6 @@ Assistant:
                 mocking_framework="Mockito",
                 related_methods=related_methods_formatted,
                 related_classes=related_classes_formatted,
+                package=package,
+                imports=imports
             )

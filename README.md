@@ -13,3 +13,4 @@ The goal of this thesis is to investigate the feasibility of using large languag
 - Python 3.9
 - sqlite3
 - tree-sitter
+- Apache Maven
