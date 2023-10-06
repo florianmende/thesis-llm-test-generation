@@ -2,6 +2,7 @@ Java_Projects/
 build/
 vendor/
 dependencies/
+logs/*
 
 # Python-specific files and directories
 __pycache__/
