@@ -3,11 +3,21 @@ import os
 import subprocess
 import configparser
 import xml.etree.ElementTree as ET
+import warnings
 
 
 class TestExecuter:
 
-    def __init__(self, project_name: str):
+    def __init__(self, project_name: str, dependencies_pre_built: bool = False):
+        """
+        Test executer class used to compile and run test cases.
+        One instance of this class has to be created for each project.
+        Calling this constructor will compile the project and create the classpath file for the project.
+        :param project_name: Name of the project to run tests for. Used to create the classpath file for compilation and
+        execution.
+        :param dependencies_pre_built: If true, the dependencies will not be built and it is assumed that they are
+        already built.
+        """
         self.project_name = project_name
         self.dependencies = []
 
@@ -18,6 +28,10 @@ class TestExecuter:
         self.MOCKITO_JAR = self.config.get('JARS', 'MOCKITO_JAR')
         self.JUNIT_JAR = self.config.get('JARS', 'JUNIT_JAR')
 
+        if not dependencies_pre_built:
+
+            self.make_dependencies()
+
     def get_dependencies_as_string(self):
         return ":".join(self.dependencies)
 
@@ -25,7 +39,7 @@ class TestExecuter:
         """
         Compile a test case using javac
         :param classpath_file_name: Name for the classpath file
-        :param test_file_path: Path to the test file to compile (relative to build/[project_name] dir)
+        :param test_file_path: Path to the test file to compile (relative to root of the project)
         :return: Tuple of return code and output of the javac command (0 if successful, 1 if not)
         """
         classpath_file_path = f"{self.current_abs_path}/build/artifacts/classpaths_tests_compilation/{self.project_name}"
@@ -37,13 +51,12 @@ class TestExecuter:
 
         # Compile the test case
         result = subprocess.run(
-            f"javac -cp {self.current_abs_path}/build/compiled_projects/{self.project_name} \
+            f"javac -cp {self.current_abs_path}/build/compiled_projects/{self.project_name}/classes: \
             -d {self.current_abs_path}/build/compiled_tests/{self.project_name} \
             @{classpath_file} \
-            {self.current_abs_path}/build/generated_tests/{self.project_name}/{test_file_path}",
+            {self.current_abs_path}/{test_file_path}",
             shell=True, capture_output=True, text=True)
         output = result.stdout if result.returncode == 0 else result.stderr
-        print(output)
         return result.returncode, output
 
     @staticmethod
@@ -92,12 +105,12 @@ class TestExecuter:
             subprocess.run(
                 f"mvn dependency:copy-dependencies -DoutputDirectory={mvn_target_dir}/dependencies \
                 -f {self.current_abs_path}/Java_Projects/{self.project_name}/pom.xml",
-                shell=True)
+                shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             # Install the project using maven (also compiles the project)
             # Tests are skipped to avoid running old tests from the project
             subprocess.run(f"mvn install -DskipTests -f {self.current_abs_path}/Java_Projects/{self.project_name}/pom.xml",
-                           shell=True)
+                           shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             # copy compiled files to compiled_projects folder
             # if no outputDirectory is specified in the pom.xml, the standard directory will be used
@@ -115,11 +128,12 @@ class TestExecuter:
         else:
             print("Dependencies already generated for project:", self.project_name)
 
-    def run_test(self, classpath_file_name, class_to_test):
+    def run_test(self, classpath_file_name, class_to_test, timeout: int = 20):
         """
         Run a test using java and junit
         :param classpath_file_name: File name where the classpath should be saved (has to be a txt)
         :param class_to_test: Class which should be run as a test (e.g. org.jfree.tests.junit.chart.JFreeChartTests)
+        :param timeout: Timeout for the test execution in seconds
         :return:
         """
 
@@ -134,24 +148,34 @@ class TestExecuter:
         classpath_file = os.path.join(classpath_file_path, classpath_file_name)
         self.export_classpath(classpath_file, classpath)
 
-        cmd = ["java",
-                f"@{classpath_file}",
-                "org.junit.platform.console.ConsoleLauncher", "--disable-banner", "--disable-ansi-colors",
-                "--fail-if-no-tests", "--details=none", "--select-class",
-                f"{class_to_test}"]
+        cmd = [
+            "java",
+            "--add-opens java.base/java.lang=ALL-UNNAMED",
+            f"@{classpath_file}",
+            "org.junit.platform.console.ConsoleLauncher",
+            "--disable-banner",
+            "--disable-ansi-colors",
+            "--fail-if-no-tests",
+            "--details=none",
+            "--select-class",
+            f"{class_to_test}"
+        ]
+        try:
+            result = subprocess.run(" ".join(cmd), shell=True, timeout=timeout, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            output = result.stdout if result.stdout else result.stderr
+            return result.returncode, output
+        except subprocess.TimeoutExpired:
+            return 1, "Timeout"
 
-        result = subprocess.run(" ".join(cmd), shell=True)
-        output = result.stdout if result.returncode == 0 else result.stderr
-        return result.returncode, output
 
-
-test_executer = TestExecuter("jfreechart")
-test_executer.make_dependencies()
-
-print("Compiling Test Case:")
-print(test_executer.compile_test_case("test_classpath.txt", "/java/org/jfree/tests/10_test.java"))
-
-
-# javac = test_executer.run_test("10_test.java", deps, "build/compiled_tests/org/jfree/tests/", "build/compiled_tests")
-print("Running test case:")
-print(test_executer.run_test("test_classpath.txt", "org.jfree.tests.MinuteTest"))
+#
+# test_executer = TestExecuter("jfreechart")
+# test_executer.make_dependencies()
+#
+# print("Compiling Test Case:")
+# print(test_executer.compile_test_case("test_classpath.txt", "/java/org/jfree/tests/10_test.java"))
+#
+#
+# # javac = test_executer.run_test("10_test.java", deps, "build/compiled_tests/org/jfree/tests/", "build/compiled_tests")
+# print("Running test case:")
+# print(test_executer.run_test("test_classpath.txt", "org.jfree.tests.MinuteTest"))

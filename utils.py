@@ -1,5 +1,31 @@
 import sys
 import time
+import os
+from contextlib import contextmanager
+from io import StringIO
+import re
+import argparse
+
+
+def extract_source_code(markdown_string):
+    pattern = r'```java(.*?)```'
+    source_code_sections = re.findall(pattern, markdown_string, re.DOTALL)
+    return source_code_sections
+
+
+@contextmanager
+def mute_output():
+    # Save the original sys.stdout
+    original_stdout = sys.stdout
+
+    # Redirect sys.stdout to a StringIO object to capture the output
+    sys.stdout = StringIO()
+
+    try:
+        yield
+    finally:
+        # Restore the original sys.stdout
+        sys.stdout = original_stdout
 
 
 def print_progress_bar(iteration: int, total, prefix: str = '', length=50, fill='█', display_100_percent=False):
@@ -45,3 +71,58 @@ def get_user_choices(options, text):
                 print("Invalid choice. Please try again.")
         except ValueError:
             print("Invalid input. Please enter valid numbers separated by commas.")
+
+
+def make_dir_if_not_exists(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+
+def measure_execution_time(text):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            start = time.time()
+            result = func(*args, **kwargs)
+            print(f"{text} took: {round(time.time() - start, 1)} seconds")
+            return result
+        return wrapper
+    return decorator
+
+
+def write_file(filepath, filename, suffix, content):
+    with open(os.path.join(filepath, filename + suffix), "w") as file:
+        file.write(content)
+
+
+def change_class_name_in_java_file(filepath, old_class_name, new_class_name):
+    with open(filepath, "r") as file:
+        content = file.read()
+
+    content = content.replace(old_class_name, new_class_name)
+
+    with open(filepath, "w") as file:
+        file.write(content)
+
+
+def replace_str_in_file(filepath, old_str, new_str):
+    with open(filepath, "r") as file:
+        content = file.read()
+
+    content = content.replace(old_str, new_str)
+
+    with open(filepath, "w") as file:
+        file.write(content)
+
+
+def delete_lines_starting_with(text, start_string):
+    lines = text.split('\n')  # Split the text into lines
+    filtered_lines = [line for line in lines if not line.startswith(start_string)]  # Filter out lines starting with the specified string
+    result_text = '\n'.join(filtered_lines)  # Join the remaining lines back into a string
+    return result_text
+
+
+class IntRangeAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        # Split the values into start and end integers
+        start, end = map(int, values.split(':'))
+        setattr(namespace, self.dest, range(start, end + 1))

@@ -32,6 +32,7 @@ class DataBase:
                     classHeader TEXT,
                     imports TEXT,
                     package TEXT,
+                    filepath TEXT,
                     FOREIGN KEY (projectName) REFERENCES projects(projectName)
                 )""")
 
@@ -80,10 +81,10 @@ class DataBase:
         self.conn.commit()
 
     def insert_class(self, class_identifier, project_name, class_modifier, class_super_interface, full_text,
-                     class_header, imports, package):
-        self.cursor.execute("INSERT INTO classes VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                     class_header, imports, package, filepath):
+        self.cursor.execute("INSERT INTO classes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                             (class_identifier, project_name, class_modifier, class_super_interface, full_text,
-                             class_header, imports, package))
+                             class_header, imports, package, filepath))
         self.conn.commit()
 
     def insert_class_variable(self, class_identifier, variable_identifier, variable_type):
@@ -174,6 +175,40 @@ class DataBase:
 
     def get_package_of_class(self, class_identifier):
         self.cursor.execute("SELECT package FROM classes WHERE classIdentifier=?", (class_identifier,))
+        result = self.cursor.fetchone()
+        if result:
+            return result[0]
+        return None
+
+    def get_filepath_for_method(self, method_id):
+        self.cursor.execute("""SELECT filepath
+                                FROM methods
+                                INNER JOIN classes ON methods.classIdentifier = classes.classIdentifier
+                                WHERE methods.methodId = ?""", (method_id,))
+        result = self.cursor.fetchone()
+        if result:
+            return result[0]
+        return None
+
+    def get_class_identifier_for_method(self, method_id):
+        self.cursor.execute("SELECT classIdentifier FROM methods WHERE methodId=?", (method_id,))
+        result = self.cursor.fetchone()
+        if result:
+            return result[0]
+        return None
+
+    def get_num_of_methods(self):
+        self.cursor.execute("SELECT COUNT(*) FROM methods")
+        result = self.cursor.fetchone()
+        if result:
+            return result[0]
+        return None
+
+    def get_class_header_for_method(self, method_id: int):
+        self.cursor.execute("""SELECT classHeader
+                                FROM methods
+                                INNER JOIN classes ON methods.classIdentifier = classes.classIdentifier
+                                WHERE methods.methodId = ?""", (method_id,))
         result = self.cursor.fetchone()
         if result:
             return result[0]
