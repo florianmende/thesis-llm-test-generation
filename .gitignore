@@ -2,7 +2,7 @@ Java_Projects/
 build/
 vendor/
 dependencies/
-logs/*
+logs/
 
 # Python-specific files and directories
 __pycache__/
@@ -18,4 +18,5 @@ __pycache__/
 
 # Ignore system-specific files
 .DS_Store
+
 .env

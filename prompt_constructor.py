@@ -3,15 +3,22 @@ from llama_cpp import Llama
 import tiktoken
 from langchain.prompts import ChatPromptTemplate
 from langchain.prompts.chat import SystemMessagePromptTemplate, HumanMessagePromptTemplate
+from utils import mute_output
+from prompt_templates import compile_error_prompt, prompt_template_1, prompt_template_2, prompt_template_3, \
+    prompt_template_4, system_prompt
 
 
 class PromptConstructor:
 
-    def __init__(self, db_name):
+    def __init__(self, db_name, max_tokens):
         """
         This class is responsible for constructing the prompt for the LLM given a reference to a method in the database
+        :param db_name: the name of the database
+        :param max_tokens: the maximum number of tokens allowed in the prompt
         """
         self.db = DataBase(db_name)
+        self.max_tokens = max_tokens
+
 
     def prompt(self, method_id):
         pass
@@ -24,19 +31,20 @@ class PromptConstructor:
         related_classes = self.db.get_related_classes_of_method(method_id)
         imports = self.db.get_imports_of_class(class_name)
         package = self.db.get_package_of_class(class_name)
+        class_header = self.db.get_class_header_for_method(method_id)
 
         related_methods_formatted = self.construct_code_prompt_from_dict_list(related_methods, "java", True)
         related_classes_formatted = self.construct_code_prompt_from_dict_list(related_classes, "java", False)
 
         size = 1
         prompt = ""
-        while size <= 3 and self.check_token_limit(
+        while size <= 4 and self.check_token_limit(
                 self._generate_prompts_with_different_size(size, method_name, class_name, method,
                                                            related_methods_formatted,
-                                                           related_classes_formatted, imports, package)):
+                                                           related_classes_formatted, imports, package, class_header)):
             prompt = self._generate_prompts_with_different_size(size, method_name, class_name, method,
                                                                 related_methods_formatted, related_classes_formatted,
-                                                                imports, package)
+                                                                imports, package, class_header)
             size += 1
 
         return prompt
@@ -63,20 +71,32 @@ class PromptConstructor:
             prompt += "\n```\n"
         return prompt if prompt != "" else "No relations found."
 
-    @staticmethod
-    def check_token_limit(prompt: str, token_limit: int = 4096):
+    def check_token_limit(self, prompt: str):
         """
         Checks if the prompt is too long for the given token limit.
         :param prompt: the prompt to check
         :param token_limit: the token limit to check against
         :return: True if the prompt is too long, False otherwise
         """
-        tokens = PromptConstructor.tokenize_with_model(prompt, "vendor/model/codellama-13b-instruct.Q4_K_M.gguf")
-        print("Tokens: " + str(len(tokens)))
-        return len(tokens) < token_limit
+        tokens = self.tokenize_with_model(prompt, "vendor/model/mistral-7b-instruct-v0.1.Q5_K_M.gguf")
+        return len(tokens) < self.max_tokens
 
-    @staticmethod
-    def tokenize_with_model(prompt: str, model_path: str):
+    def construct_compile_error_repair_prompt(self, method_text, error_message):
+        """
+        Constructs a prompt for the repair of a compile error.
+        :param method_text: the method text
+        :param error_message: the error message
+        :return: A prompt that instructs the LLM to repair the compile error
+        """
+        prompt = str.format(compile_error_prompt.compile_error_prompt,
+                            error_message=error_message,
+                            method_text=method_text)
+        if self.check_token_limit(prompt):
+            return prompt
+        else:
+            return ""
+
+    def tokenize_with_model(self, prompt: str, model_path: str):
         """
         Generates a list of tokens for the prompt.
         Uses the Llama tokenizer provided by llama-cpp-python.
@@ -84,8 +104,7 @@ class PromptConstructor:
         :param model_path: the path to the model to use
         :return: A list of integers representing the tokens
         """
-        # tokenizer = LlamaTokenizerFast.from_pretrained(model_path)
-        llm = Llama(model_path)
+        llm = Llama(model_path, n_ctx=self.max_tokens, verbose=False)
         tokens = llm.tokenize(bytes(prompt, "utf-8"))
         return tokens
 
@@ -93,7 +112,7 @@ class PromptConstructor:
     def tokenize_with_tiktoken(prompt: str):
         """
         Generates a list of tokens for the prompt using tiktoken with the cl100k_base encoding.
-        Using this method can be usefull when running the application with OpenAI models, as they use
+        Using this method can be useful when running the application with OpenAI models, as they use
         the same encoding.
         :param prompt: the prompt to generate tokens for
         :return: A list of integers representing the tokens
@@ -110,43 +129,14 @@ class PromptConstructor:
                                               related_methods_formatted: str,
                                               related_classes_formatted: str,
                                               imports: str,
-                                              package: str):
-
-        system_prompt = """
-You are an expert programming assistant with attention to detail who wants to help other humans by writing \
-unit tests in Java for them. 
-The unit test must use the following testing framework: {testing_framework}
-The unit test must use the following mocking framework: {mocking_framework}
-Human will provide you with the source code of the method to be tested as well as some additional information.
-Only answer with code, no additional explanations required. Add comments in the code, explaining each line and its purpose.
-Name the test method accordingly to the method to be tested.
-Import required classes and methods. Create a new class if necessary.
-Always add necessary assertions to the test method.
-                            """
+                                              package: str,
+                                              class_header: str):
 
         if size == 1:
-            prompt_template = ChatPromptTemplate.from_messages(
+            prompt_template = "\n".join(
                 [
-                    SystemMessagePromptTemplate.from_template(
-                        system_prompt
-                    ),
-                    HumanMessagePromptTemplate.from_template(
-                        """
-Generate a unit test for the following method:
-Method: {method_name}
-Class: {class_name}
-Package: {package}
-Imports: 
-{imports}
-
-Method code: 
-{method_code}
-
-Generate a unit test for the specified method!
-Assistant: 
-```java
-                        """
-                    )
+                    system_prompt.system_prompt,
+                    prompt_template_1.prompt_template_1
                 ])
 
             return prompt_template.format(
@@ -160,34 +150,28 @@ Assistant:
             )
 
         elif size == 2:
-            prompt_template = ChatPromptTemplate.from_messages(
+            prompt_template = "\n".join(
                 [
-                    SystemMessagePromptTemplate.from_template(
-                        system_prompt
-                    ),
-                    HumanMessagePromptTemplate.from_template(
-                        """
-Generate a unit test for the following method:
-Method: {method_name}
-Class: {class_name}
-Package: {package}
-Imports: 
-{imports}
+                    system_prompt.system_prompt,
+                    prompt_template_2.prompt_template_2
+                ])
 
-Method code: 
-{method_code}
+            return prompt_template.format(
+                method_name=method_name,
+                class_name=class_name,
+                method_code=method["fullText"],
+                testing_framework="JUnit 5",
+                mocking_framework="Mockito",
+                package=package,
+                imports=imports,
+                class_header=class_header
+            )
 
-Here is some additional code that might be useful:
-
-Related methods: 
-
-{related_methods}
-
-Generate a unit test for the specified method!
-Assistant:
-```java
-                        """
-                    )
+        elif size == 3:
+            prompt_template = "\n".join(
+                [
+                    system_prompt.system_prompt,
+                    prompt_template_3.prompt_template_3
                 ])
 
             return prompt_template.format(
@@ -198,43 +182,15 @@ Assistant:
                 mocking_framework="Mockito",
                 related_methods=related_methods_formatted,
                 package=package,
-                imports=imports
+                imports=imports,
+                class_header=class_header
             )
 
-        elif size == 3 or size == 4:
-            prompt_template = ChatPromptTemplate.from_messages(
+        elif size == 4 or size == 5:
+            prompt_template = "\n".join(
                 [
-                    SystemMessagePromptTemplate.from_template(
-                        system_prompt
-                    ),
-                    HumanMessagePromptTemplate.from_template(
-                        """
-Generate a unit test for the following method:
-Method: {method_name}
-Class: {class_name}
-Package: {package}
-Imports: 
-{imports}
-
-Method code: 
-{method_code}
-
-
-Here is some additional code that might be useful:
-
-Related methods: 
-
-{related_methods}
-
-Related classes: 
-
-{related_classes}
-
-Generate a unit test for the specified method!
-Assistant:
-```java
-                        """
-                    )
+                    system_prompt.system_prompt,
+                    prompt_template_4.prompt_template_4
                 ])
 
             return prompt_template.format(
@@ -246,5 +202,6 @@ Assistant:
                 related_methods=related_methods_formatted,
                 related_classes=related_classes_formatted,
                 package=package,
-                imports=imports
+                imports=imports,
+                class_header=class_header
             )

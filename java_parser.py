@@ -555,3 +555,25 @@ class JavaCodeParser:
                                node.type == "package_declaration"]
         package_declarations = "\n".join(package_declarations)
         return package_declarations
+
+    def extract_class_name(self, filepath: str):
+        """
+        Extract the name of the class given a filepath to a Java file.
+        :param filepath: Path to the Java file.
+        :return: Name of the class.
+        """
+        with open(filepath, 'r') as file:
+            try:
+                file_content = file.read()
+            except IOError:
+                return {}
+
+        tree = self.parser.parse(bytes(file_content, "utf8"))
+        class_declaration = [node for node in tree.root_node.children if node.type == "class_declaration"]
+        if class_declaration:
+            class_declaration = class_declaration[0]
+            class_name = [node.text.decode("utf-8") for node in class_declaration.children if node.type == "identifier"][0]
+
+            return class_name
+        else:
+            return None
