@@ -1,8 +1,18 @@
 Java_Projects/*
+!.gitkeep
+# exclude everything except .gitkeep file
 build/*
+!.gitkeep
+
 vendor/model/*
+!.gitkeep
+
 vendor/tree-sitter-java/*
+!.gitkeep
+
 dependencies/*
+!.gitkeep
+
 logs/*
 
 # Python-specific files and directories
