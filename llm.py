@@ -1,11 +1,10 @@
-from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAI
 import os
 import warnings
 from utils import measure_execution_time
-from langchain.prompts.chat import HumanMessage
 import requests
 from dotenv import load_dotenv
+import configparser
 
 
 class LocalServerLlm(OpenAI):
@@ -15,6 +14,11 @@ class LocalServerLlm(OpenAI):
     """
 
     def __init__(self):
+        self.config = configparser.ConfigParser()
+        self.config.read('config.ini')
+        self.MODEL_MAX_OUTPUT_TOKENS = self.config.getint('INFERENCE', 'MODEL_MAX_OUTPUT_TOKENS')
+        self.LOCAL_WEB_SERVER_PORT = self.config.get('INFERENCE', 'LOCAL_WEB_SERVER_PORT')
+
         os.environ[
             "OPENAI_API_KEY"
         ] = "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # can be anything
@@ -24,10 +28,10 @@ class LocalServerLlm(OpenAI):
         warnings.filterwarnings("ignore")
         super().__init__(
             model_name="gpt-3.5-turbo",  # can be anything
-            openai_api_base="http://localhost:8000/v1",
+            openai_api_base=f"http://localhost:{self.LOCAL_WEB_SERVER_PORT}/v1",
             top_p=0.95,
             temperature=0.5,
-            max_tokens=1024,
+            max_tokens=self.MODEL_MAX_OUTPUT_TOKENS,
             model_kwargs=dict(
                 openai_key="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
             ),
@@ -48,8 +52,10 @@ class LocalServerLlm(OpenAI):
 class HuggingFaceLlm:
 
     def __init__(self):
-        self.API_URL = "https://api-inference.huggingface.co/models/codellama/CodeLlama-34b-Instruct-hf"
-        # self.API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1"
+        self.config = configparser.ConfigParser()
+        self.config.read('config.ini')
+        self.MODEL_MAX_OUTPUT_TOKENS = self.config.getint('INFERENCE', 'MODEL_MAX_OUTPUT_TOKENS')
+        self.API_URL = self.config.get('INFERENCE', 'HUGGINGFACE_INFERENCE_URL')
 
         load_dotenv()
         self.headers = {"Authorization": f"Bearer {os.getenv('HF_API_KEY')}"}
@@ -63,7 +69,7 @@ class HuggingFaceLlm:
         result = self.query({
             "inputs": message,
             "parameters": {
-                "max_new_tokens": 2048,
+                "max_new_tokens": self.MODEL_MAX_OUTPUT_TOKENS,
                 "return_full_text": False,
                 "temperature": 0.5,
                 "max_time": 100,

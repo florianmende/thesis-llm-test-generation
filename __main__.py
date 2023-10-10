@@ -15,9 +15,14 @@ def main():
                                  help='When database for projects was already created, test generation can be run in isolation (no parsing to json files or database generation)')
     argument_parser.add_argument('--runs', type=int, default=1,
                                  help='Amount of times the test generation should be run for each project')
-    argument_parser.add_argument('--method_range', action=IntRangeAction, help='Only run test generation for the methods in the range. Specify a range of integers in the format start:end')
-    argument_parser.add_argument('--multiprocessing', type=int, default=0, help='Amount of processes to use for test generation. If 0, no multiprocessing will be used.')
-
+    argument_parser.add_argument('--method_range', action=IntRangeAction,
+                                 help='Only run test generation for the methods in the range. Specify a range of integers in the format start:end')
+    argument_parser.add_argument('--multiprocessing', type=int, default=0,
+                                 help='Amount of processes to use for test generation. If 0, no multiprocessing will be used.')
+    argument_parser.add_argument('--compilation_repair_rounds', type=int, default="1",
+                                 help='Amount of rounds to run the compilation repair for each method.')
+    argument_parser.add_argument('--execution_repair_rounds', type=int, default=1,
+                                 help='Amount of rounds to run the execution repair for each method.')
 
     args = argument_parser.parse_args()
 
@@ -57,14 +62,17 @@ def main():
         test_generator = TestGenerator(project)
 
         if not args.method_range:
-            test_generator.generate_tests_for_whole_project(args.runs)
+            test_generator.generate_tests_for_whole_project(args.runs, args.compilation_repair_rounds,
+                                                            args.execution_repair_rounds)
         else:
-            test_generator.generate_tests_for_method_range(args.method_range, args.runs)
+            test_generator.generate_tests_for_method_range(args.method_range, args.runs, args.compilation_repair_rounds,
+                                                           args.execution_repair_rounds)
 
 
 def multiprocessed_generation(method_id):
     test_generator = TestGenerator("commons-csv-master")
     test_generator.generate_test_for_method(method_id)
+
 
 if __name__ == "__main__":
     main()

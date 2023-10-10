@@ -1,27 +1,29 @@
 from db import DataBase
 from llama_cpp import Llama
 import tiktoken
-from langchain.prompts import ChatPromptTemplate
-from langchain.prompts.chat import SystemMessagePromptTemplate, HumanMessagePromptTemplate
-from utils import mute_output
 from prompt_templates import compile_error_prompt, prompt_template_1, prompt_template_2, prompt_template_3, \
-    prompt_template_4, system_prompt
+    prompt_template_4, system_prompt, execution_error_prompt
+import configparser
 
 
 class PromptConstructor:
 
-    def __init__(self, db_name, max_tokens):
+    def __init__(self, db_name):
         """
         This class is responsible for constructing the prompt for the LLM given a reference to a method in the database
         :param db_name: the name of the database
         :param max_tokens: the maximum number of tokens allowed in the prompt
         """
         self.db = DataBase(db_name)
-        self.max_tokens = max_tokens
 
+        self.config = configparser.ConfigParser()
+        self.config.read('config.ini')
+        self.USE_MODEL = self.config.getboolean('MODEL', 'USE_MODEL')
 
-    def prompt(self, method_id):
-        pass
+        if self.USE_MODEL:
+            self.MODEL_PATH = self.config.get('MODEL', 'MODEL_PATH')
+
+        self.max_tokens = int(self.config.get('MODEL', 'MODEL_MAX_INPUT_TOKENS'))
 
     def construct_initial_prompt(self, method_id):
         method = self.db.get_method_by_id(method_id)
@@ -78,7 +80,10 @@ class PromptConstructor:
         :param token_limit: the token limit to check against
         :return: True if the prompt is too long, False otherwise
         """
-        tokens = self.tokenize_with_model(prompt, "vendor/model/mistral-7b-instruct-v0.1.Q5_K_M.gguf")
+        if self.USE_MODEL:
+            tokens = self.tokenize_with_model(prompt, self.MODEL_PATH)
+        else:
+            tokens = self.tokenize_with_tiktoken(prompt)
         return len(tokens) < self.max_tokens
 
     def construct_compile_error_repair_prompt(self, method_text, error_message):
@@ -89,6 +94,21 @@ class PromptConstructor:
         :return: A prompt that instructs the LLM to repair the compile error
         """
         prompt = str.format(compile_error_prompt.compile_error_prompt,
+                            error_message=error_message,
+                            method_text=method_text)
+        if self.check_token_limit(prompt):
+            return prompt
+        else:
+            return ""
+
+    def construct_execution_error_repair_prompt(self, method_text, error_message):
+        """
+        Constructs a prompt for the repair of an execution error.
+        :param method_text: the method text
+        :param error_message: the error message
+        :return: A prompt that instructs the LLM to repair the execution error
+        """
+        prompt = str.format(execution_error_prompt.execution_error_prompt,
                             error_message=error_message,
                             method_text=method_text)
         if self.check_token_limit(prompt):

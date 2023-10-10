@@ -1,8 +1,9 @@
-Java_Projects/
-build/
-vendor/
-dependencies/
-logs/
+Java_Projects/*
+build/*
+vendor/model/*
+vendor/tree-sitter-java/*
+dependencies/*
+logs/*
 
 # Python-specific files and directories
 __pycache__/

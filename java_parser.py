@@ -16,7 +16,6 @@ class JavaCodeParser:
         """
 
         # build the parser if it doesn't exist – only needs to be done once
-        # requires the file from https://github.com/tree-sitter/tree-sitter-python to be in the vendor folder
         Language.build_library(
             # Store the library in the `build` directory
             'build/tree-sitter-languages.so',

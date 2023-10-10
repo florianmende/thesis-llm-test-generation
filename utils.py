@@ -8,7 +8,8 @@ import argparse
 
 
 def extract_source_code(markdown_string):
-    pattern = r'```java(.*?)```'
+    # pattern = r'```java(.*?)```'
+    pattern = r'```(?:[^`\n]+)?\n([\s\S]*?)\n```'
     source_code_sections = re.findall(pattern, markdown_string, re.DOTALL)
     return source_code_sections
 
