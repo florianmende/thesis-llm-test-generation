@@ -1,12 +1,8 @@
-# Automated Unit Test Generation with Large Language Models
+# Implementation: Automated Unit Test Generation with Large Language Models
 
 This repository was developed in the context of the bachelor thesis "Automated Unit Test Generation with Large Language Models" by Florian Mende.
 
-## Abstract
-
-The goal of this thesis is to investigate the feasibility of using large language models for automated unit test generation. 
-
-## Installation
+## Setup
 
 ### Python requirements
 
@@ -110,7 +106,7 @@ LOCAL_WEB_SERVER_PORT = 8000
 ## Usage
 
 To generate test cases for a specific project, place the Java Project in the `Java_Projects` folder.
-**Important:** The project has to be a Maven project and has to contain a `pom.xml` file as maven will be used to compile the project and copy the required dependencies.
+**Important:** The project has to be a Maven project and has to contain a `pom.xml` file as Maven will be used to compile the project and copy the required dependencies.
 
 After placing the project in the `Java_Projects` folder, run the following command:
 
@@ -151,3 +147,5 @@ Example:
 ```bash
 python __main__.py --compilation_repair_rounds 2 --execution_repair_rounds 2
 ```
+
+All generated test classes that pass are placed in the `build/generated-tests/[project_name]/passed` folder. All generated test classes that fail are placed in the `build/generated-tests/[project_name]/compile_error` or `build/generated-tests/[project_name]/execution_error` folder depending on the error that occurred.

@@ -4,22 +4,25 @@ import os
 from db import DataBase
 from utils import make_dir_if_not_exists, \
     write_file, replace_str_in_file, \
-    delete_lines_starting_with, extract_source_code
+    delete_lines_starting_with, extract_source_code, log_to_csv
 from run_test import TestExecuter
 from java_parser import JavaCodeParser
 import logging
 import datetime
 import configparser
+from timeout_decorator import timeout
 
 
 class TestGenerator:
 
-    def __init__(self, project_name, llm_type='huggingface'):
+    def __init__(self, project_name, run_id):
 
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
         self.USE_HUGGINGFACE = self.config.getboolean('INFERENCE', 'USE_HUGGINGFACE')
         self.USE_LOCAL_WEB_SERVER = self.config.getboolean('INFERENCE', 'USE_LOCAL_WEB_SERVER')
+
+        self.run_id = run_id
 
         if self.USE_HUGGINGFACE and self.USE_LOCAL_WEB_SERVER:
             raise Exception("Cannot use both HuggingFace and Local Web Server for inference")
@@ -31,7 +34,7 @@ class TestGenerator:
         self.project_name = project_name
 
         self.current_time = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        logging.basicConfig(filename=f'logs/{self.current_time}.log',
+        logging.basicConfig(filename=f'logs/{self.run_id}.log',
                             level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
         self.db = DataBase(project_name)
@@ -84,6 +87,7 @@ class TestGenerator:
         else:
             print("> No source code in answer, skipping method")
             logging.info("No source code in answer, skipping method")
+            log_to_csv(self.project_name, method_id, "No Source Code in Answer Error", 1, self.run_id)
             return None
 
     def add_package_information(self, answer, filepaths):
@@ -105,7 +109,7 @@ class TestGenerator:
             if folder != "package":
                 make_dir_if_not_exists(filepaths[folder])
 
-    def change_class_name(self, method_id, filepaths, run_id = 1):
+    def change_class_name(self, method_id, filepaths, run_id=1):
         """
         Change the class name of the test file to a unique Name and rename the file to the new class name
         :param method_id: ID of method to change class name for
@@ -116,7 +120,8 @@ class TestGenerator:
         # change class name
         current_class_name = self.java_parser.extract_class_name(
             filepaths['execution_filepath'] + f"/{method_id}_test.java")
-        new_class_name = self.db.get_class_identifier_for_method(method_id) + f"Test_Method_{str(method_id)}_Run_{str(run_id)}"
+        new_class_name = self.db.get_class_identifier_for_method(
+            method_id) + f"Test_Method_{str(method_id)}_Run_{str(self.run_id)}"
         if current_class_name:
             logging.info("Class name extracted: " + current_class_name)
             replace_str_in_file(filepaths['execution_filepath'] + f"/{method_id}_test.java", current_class_name,
@@ -182,10 +187,11 @@ class TestGenerator:
                 logging.info("Could not create execution repair prompt")
                 return False
         except Exception as e:
-            logging.info("Error during compilation repair: " + str(e))
+            logging.info("Error during execution repair: " + str(e))
             return False
 
-    def generate_test_for_method(self, method_id, compilation_repair_rounds = 1, execution_repair_rounds = 3):
+    @timeout(600, use_signals=True)
+    def generate_test_for_method(self, method_id, compilation_repair_rounds=1, execution_repair_rounds=3):
         try:
             print("\n Generating test for method " + str(method_id))
             logging.info("Generating test for method " + str(method_id))
@@ -198,6 +204,7 @@ class TestGenerator:
                 if not answer:
                     print(">> Could not extract answer from LLM, skipping test")
                     logging.info("Could not extract answer from LLM, skipping test")
+                    log_to_csv(self.project_name, method_id, "Answer Extraction Error", 1, self.run_id)
                     return
 
                 filepaths = self.generate_target_filepaths(self.project_name, method_id)
@@ -212,7 +219,7 @@ class TestGenerator:
                 new_class_name = self.change_class_name(method_id, filepaths)
 
                 if not new_class_name:
-
+                    log_to_csv(self.project_name, method_id, "Class Name Extraction Error", 1, self.run_id)
                     return
 
                 print("> Wrote test to file, compiling...")
@@ -223,12 +230,12 @@ class TestGenerator:
                     filepaths['execution_filepath'] +
                     f"/{new_class_name}.java")
 
-
                 # if compilation fails, try to repair the compilation error
                 # run repair rounds until compilation succeeds or the maximum number of repair rounds is reached
                 current_repair_round = 1
                 while compilation_result_code != 0 and current_repair_round <= compilation_repair_rounds:
-                    compilation_repair_sucess = self.run_compilation_repair(method_id, filepaths, compilation_output, new_class_name)
+                    compilation_repair_sucess = self.run_compilation_repair(method_id, filepaths, compilation_output,
+                                                                            new_class_name)
 
                     if compilation_repair_sucess:
                         # compile the test again
@@ -242,12 +249,17 @@ class TestGenerator:
                     else:
                         print(">> Could not create repair prompt, skipping test")
                         logging.info("Could not create repair prompt, skipping test")
+                        log_to_csv(self.project_name, method_id,
+                                   f"Compilation Repair Prompt Construction Error Round {current_repair_round}", 1,
+                                   self.run_id)
                         return
 
                     current_repair_round += 1
 
                 # if compilation still fails after repair, skip the test
                 if compilation_result_code != 0:
+                    log_to_csv(self.project_name, method_id, f"Compilation Error Round {current_repair_round - 1}", 1,
+                               self.run_id, compilation_output)
                     print(">> Compilation failed after repair, skipping test \n")
                     logging.info("Compilation failed after repair, skipping test")
                     # copy java file to from execution folder to compile error folder
@@ -259,12 +271,16 @@ class TestGenerator:
                 if compilation_result_code == 0:
                     print("> Compilation successful \n")
                     logging.info("Compilation successful")
+                    log_to_csv(self.project_name, method_id, f"Compilation Successful Round {current_repair_round - 1}",
+                               0,
+                               self.run_id)
 
                     print("> Executing test \n")
 
-                    execution_result_code, execution_output = self.test_executer.run_test(f"classpath_{str(method_id)}.txt",
-                                                                                     filepaths[
-                                                                                         'package'] + f".{new_class_name}")
+                    execution_result_code, execution_output = self.test_executer.run_test(
+                        f"classpath_{str(method_id)}.txt",
+                        filepaths[
+                            'package'] + f".{new_class_name}")
 
                     current_execution_repair_round = 1
                     while execution_result_code != 0 and current_execution_repair_round <= execution_repair_rounds:
@@ -277,6 +293,7 @@ class TestGenerator:
                         if execution_repair_sucess:
                             print(">> Compiling repaired test")
                             logging.info("Compiling repaired test")
+
                             # compile the test again
                             compilation_result_code, compilation_output = self.test_executer.compile_test_case(
                                 f"classpath_{str(method_id)}.txt",
@@ -285,18 +302,27 @@ class TestGenerator:
                             if compilation_result_code != 0:
                                 print(">> Compilation failed after repair, skipping test \n")
                                 logging.info("Compilation failed after repair, skipping test")
+                                log_to_csv(self.project_name, method_id,
+                                           f"Compilation Error during Execution Repair Round {current_execution_repair_round}",
+                                           1,
+                                           self.run_id)
                                 # skip the test if compilation fails
                                 break
 
                             print(">> Running repaired test")
                             logging.info("Running repaired test")
-                            execution_result_code, execution_output = self.test_executer.run_test(f"classpath_{str(method_id)}.txt",
-                                                                                         filepaths[
-                                                                                             'package'] + f".{new_class_name}")
+                            execution_result_code, execution_output = self.test_executer.run_test(
+                                f"classpath_{str(method_id)}.txt",
+                                filepaths[
+                                    'package'] + f".{new_class_name}")
                             logging.info("Execution result: " + str(execution_output))
                         else:
                             print(">> Could not create repair prompt, skipping test")
                             logging.info("Could not create repair prompt, skipping test")
+                            log_to_csv(self.project_name, method_id,
+                                       f"Execution Repair Prompt Construction Error Round {current_execution_repair_round}",
+                                       1,
+                                       self.run_id)
                             return
 
                         current_execution_repair_round += 1
@@ -304,12 +330,18 @@ class TestGenerator:
                     if execution_result_code == 0:
                         print(">> Execution successful, test will be saved \n")
                         logging.info("Execution successful, test will be saved")
+                        log_to_csv(self.project_name, method_id,
+                                   f"Execution Successful after {current_execution_repair_round - 1} repairs", 0,
+                                   self.run_id)
                         # move java file to from execution folder to passed folder
                         os.rename(filepaths['execution_filepath'] + f"/{new_class_name}.java",
                                   filepaths['passed_filepath'] + f"/{new_class_name}.java")
                         print(">> Test finished \n")
                     else:
                         print(">> Execution failed after repair, skipping test \n")
+                        log_to_csv(self.project_name, method_id,
+                                   f"Execution Error after after {current_execution_repair_round - 1} repairs", 1,
+                                   self.run_id, execution_output)
                         # copy java file to from execution folder to execution error folder
                         os.rename(filepaths['execution_filepath'] + f"/{new_class_name}.java",
                                   filepaths['execution_error_filepath'] + f"/{new_class_name}.java")
@@ -317,11 +349,15 @@ class TestGenerator:
 
         except Exception as e:
             logging.exception("Exception occurred " + str(e))
-            print("Exception occurred")
+            print("Exception occurred " + str(e))
             print("Skipping method")
+            log_to_csv(self.project_name, method_id,
+                       "Other Error", 1,
+                       self.run_id, str(e))
             return
 
-    def generate_tests_for_whole_project(self, runs_per_method=1, compilation_repair_rounds=1, execution_repair_rounds=1):
+    def generate_tests_for_whole_project(self, runs_per_method=1, compilation_repair_rounds=1,
+                                         execution_repair_rounds=1):
         """
         Generates tests for all methods in the project
         :param runs_per_method: Trys per method
@@ -329,11 +365,11 @@ class TestGenerator:
         :param execution_repair_rounds: Number of repair rounds for execution errors
         :return:
         """
-        for run in range(1, runs_per_method + 1):
-            for method_id in range(1, self.num_methods + 1):
-                self.generate_test_for_method(method_id, compilation_repair_rounds, execution_repair_rounds)
+        self.generate_tests_for_method_range(range(1, self.num_methods + 1), runs_per_method, compilation_repair_rounds,
+                                             execution_repair_rounds)
 
-    def generate_tests_for_method_range(self, method_range: range, runs_per_method=1, compilation_repair_rounds=1, execution_repair_rounds=1):
+    def generate_tests_for_method_range(self, method_range: range, runs_per_method=1, compilation_repair_rounds=1,
+                                        execution_repair_rounds=1):
         """
         Generates tests for a range of methods in the project based on the method id
         :param method_range: range of method ids
@@ -344,5 +380,9 @@ class TestGenerator:
         """
         for run in range(1, runs_per_method + 1):
             for method_id in method_range:
-                self.generate_test_for_method(method_id, compilation_repair_rounds, execution_repair_rounds)
-
+                try:
+                    self.generate_test_for_method(method_id, compilation_repair_rounds, execution_repair_rounds)
+                except TimeoutError as e:
+                    print("Function execution timed out for method " + str(method_id))
+                    logging.info("Function execution timed out for method " + str(method_id))
+                    log_to_csv(self.project_name, method_id, "Timeout Error", 1, self.run_id, str(e))

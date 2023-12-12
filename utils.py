@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from io import StringIO
 import re
 import argparse
-
+import csv
 
 def extract_source_code(markdown_string):
     # pattern = r'```java(.*?)```'
@@ -127,3 +127,22 @@ class IntRangeAction(argparse.Action):
         # Split the values into start and end integers
         start, end = map(int, values.split(':'))
         setattr(namespace, self.dest, range(start, end + 1))
+
+
+def create_log_csv(filename):
+    # check if file exists
+    if os.path.exists(f"logs/{filename}.csv"):
+        return
+    with open(f"logs/{filename}.csv", 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['project_name', 'method_id', 'event', 'result_code', 'add_info'])
+
+
+def log_to_csv(project_name, method_id, event, result_code, log_file, add_info=""):
+    add_info = str(add_info).replace('\n', ' ').replace('\r', '')
+    log_entry = [project_name, method_id, event, result_code, add_info]
+
+    # Write log entry to the CSV file with ; as the delimiter
+    with open(f"logs/{log_file}.csv", 'a', newline='') as csvfile:
+        writer = csv.writer(csvfile, delimiter=';', escapechar='\\')  # Specify the delimiter
+        writer.writerow(log_entry)

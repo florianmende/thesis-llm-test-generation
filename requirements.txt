@@ -2,5 +2,5 @@ langchain==0.0.311
 python-dotenv==1.0.0
 Requests==2.31.0
 tiktoken==0.5.1
-tree_sitter=0.20.2
-llama-cpp-python=0.2.6
+tree_sitter==0.20.2
+llama-cpp-python==0.2.6

@@ -166,16 +166,3 @@ class TestExecuter:
             return result.returncode, output
         except subprocess.TimeoutExpired:
             return 1, "Timeout"
-
-
-#
-# test_executer = TestExecuter("jfreechart")
-# test_executer.make_dependencies()
-#
-# print("Compiling Test Case:")
-# print(test_executer.compile_test_case("test_classpath.txt", "/java/org/jfree/tests/10_test.java"))
-#
-#
-# # javac = test_executer.run_test("10_test.java", deps, "build/compiled_tests/org/jfree/tests/", "build/compiled_tests")
-# print("Running test case:")
-# print(test_executer.run_test("test_classpath.txt", "org.jfree.tests.MinuteTest"))

@@ -5,6 +5,7 @@ from utils import measure_execution_time
 import requests
 from dotenv import load_dotenv
 import configparser
+import logging
 
 
 class LocalServerLlm(OpenAI):
@@ -61,8 +62,12 @@ class HuggingFaceLlm:
         self.headers = {"Authorization": f"Bearer {os.getenv('HF_API_KEY')}"}
 
     def query(self, payload):
-        response = requests.post(self.API_URL, headers=self.headers, json=payload)
-        return response.json()
+        response = requests.post(self.API_URL, headers=self.headers, json=payload).json()
+
+        while type(response) == dict and "error" in response.keys():
+            response = requests.post(self.API_URL, headers=self.headers, json=payload).json()
+
+        return response
 
     @measure_execution_time(">> LLM query")
     def __call__(self, message):
@@ -71,12 +76,14 @@ class HuggingFaceLlm:
             "parameters": {
                 "max_new_tokens": self.MODEL_MAX_OUTPUT_TOKENS,
                 "return_full_text": False,
-                "temperature": 0.5,
+                "temperature": 0.001,
                 "max_time": 100,
             },
             "options": {
                 "use_cache": False,
+                "wait_for_model": True,
             }
         })
         if result:
+            logging.info(f"LLM response: {result}")
             return result[0]["generated_text"]
