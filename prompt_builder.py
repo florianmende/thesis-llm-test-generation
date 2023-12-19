@@ -6,7 +6,7 @@ from prompt_templates import compile_error_prompt, prompt_template_1, prompt_tem
 import configparser
 
 
-class PromptConstructor:
+class PromptBuilder:
 
     def __init__(self, db_name):
         """

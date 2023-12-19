@@ -1,4 +1,4 @@
-from prompt_constructor import PromptConstructor
+from prompt_builder import PromptBuilder
 from llm import LocalServerLlm, HuggingFaceLlm
 import os
 from db import DataBase
@@ -38,7 +38,7 @@ class TestGenerator:
                             level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
         self.db = DataBase(project_name)
-        self.prompt_constructor = PromptConstructor(project_name)
+        self.prompt_constructor = PromptBuilder(project_name)
         self.test_executer = TestExecuter(project_name, False)
         self.java_parser = JavaCodeParser()
 

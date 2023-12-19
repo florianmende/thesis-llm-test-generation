@@ -1,4 +1,4 @@
-from file_system_parser import FileSystemParser
+from file_system_scanner import FileSystemScanner
 from java_parser import JavaCodeParser
 from utils import print_progress_bar, get_user_choices, IntRangeAction, create_log_csv
 from json_to_db import convert_json_to_db
@@ -36,7 +36,7 @@ def main():
 
     create_log_csv(RUN_ID)
 
-    parser = FileSystemParser("./Java_Projects")
+    parser = FileSystemScanner("./Java_Projects")
     files = parser.parse()
 
     my_java_parser = JavaCodeParser()

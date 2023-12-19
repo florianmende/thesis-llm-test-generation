@@ -1,7 +1,7 @@
 import os
 
 
-class FileSystemParser:
+class FileSystemScanner:
     """
     This class is used to parse the folder with Java projects and extract all paths to Java files.
 
