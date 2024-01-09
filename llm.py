@@ -15,34 +15,31 @@ class LocalServerLlm(OpenAI):
     """
 
     def __init__(self):
-        self.config = configparser.ConfigParser()
-        self.config.read('config.ini')
-        self.MODEL_MAX_OUTPUT_TOKENS = self.config.getint('INFERENCE', 'MODEL_MAX_OUTPUT_TOKENS')
-        self.LOCAL_WEB_SERVER_PORT = self.config.get('INFERENCE', 'LOCAL_WEB_SERVER_PORT')
+
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+        # self.MODEL_MAX_OUTPUT_TOKENS = self.config.getint('INFERENCE', 'MODEL_MAX_OUTPUT_TOKENS')
+        # self.LOCAL_WEB_SERVER_PORT = self.config.get('INFERENCE', 'LOCAL_WEB_SERVER_PORT')
 
         os.environ[
             "OPENAI_API_KEY"
         ] = "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # can be anything
-        os.environ["OPENAI_API_BASE"] = "http://localhost:8000/v1"
-        os.environ["OPENAI_API_HOST"] = "http://localhost:8000"
+        os.environ["OPENAI_API_BASE"] = f"http://localhost:{config.get('INFERENCE', 'LOCAL_WEB_SERVER_PORT')}/v1"
+        os.environ["OPENAI_API_HOST"] = f"http://localhost:{config.get('INFERENCE', 'LOCAL_WEB_SERVER_PORT')}"
 
         warnings.filterwarnings("ignore")
         super().__init__(
             model_name="gpt-3.5-turbo",  # can be anything
-            openai_api_base=f"http://localhost:{self.LOCAL_WEB_SERVER_PORT}/v1",
+            openai_api_base=f"http://localhost:{config.get('INFERENCE', 'LOCAL_WEB_SERVER_PORT')}/v1",
             top_p=0.95,
             temperature=0.5,
-            max_tokens=self.MODEL_MAX_OUTPUT_TOKENS,
-            model_kwargs=dict(
-                openai_key="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-            ),
+            max_tokens=config.getint('INFERENCE', 'MODEL_MAX_OUTPUT_TOKENS'),
             presence_penalty=0.0,
             n=1,
             best_of=3,
             batch_size=1,
             logit_bias={},
             streaming=False,
-            stop_field=["</s>"]
         )
 
     @measure_execution_time(">> LLM query")
