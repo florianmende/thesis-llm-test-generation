@@ -76,7 +76,7 @@ class HuggingFaceLlm:
             "parameters": {
                 "max_new_tokens": self.MODEL_MAX_OUTPUT_TOKENS,
                 "return_full_text": False,
-                "temperature": 0.001,
+                "temperature": 0.5,
                 "max_time": 100,
             },
             "options": {

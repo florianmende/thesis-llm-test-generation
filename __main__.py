@@ -1,3 +1,4 @@
+import configparser
 from file_system_scanner import FileSystemScanner
 from java_parser import JavaCodeParser
 from utils import print_progress_bar, get_user_choices, IntRangeAction, create_log_csv
@@ -28,6 +29,11 @@ def main():
                                  help='Option to manually specify the run id which will be used to name the generated tests and log files.')
 
     args = argument_parser.parse_args()
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+
+    if config.getboolean("INFERENCE", "USE_HUGGINGFACE") and config.getboolean("INFERENCE", "USE_LOCAL_WEB_SERVER"):  # both true
+        raise Exception("Both USE_HUGGINGFACE and USE_LOCAL_WEB_SERVER are set to true. Please set one of them to false.")
 
     if args.run_id is not None:
         RUN_ID = args.run_id
