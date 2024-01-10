@@ -155,3 +155,8 @@ python __main__.py --compilation_repair_rounds 2 --execution_repair_rounds 2
 ```
 
 All generated test classes that pass are placed in the `build/generated-tests/[project_name]/passed` folder. All generated test classes that fail are placed in the `build/generated-tests/[project_name]/compile_error` or `build/generated-tests/[project_name]/execution_error` folder depending on the error that occurred.
+
+
+## License
+
+This project including the produced figures is licensed under the Apache License Version 2.0 - see the [LICENSE](LICENSE.txt) file for details.
