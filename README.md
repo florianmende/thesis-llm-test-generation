@@ -88,6 +88,10 @@ HF_API_KEY=hf_abcdefghijk
 
 If you want to use the local inference, you have to have llama-cpp-python installed and a webserver running. For further information, please refer to the [llama-cpp-python repository](https://github.com/abetlen/llama-cpp-python).
 Set `USE_LOCAL_WEB_SERVER` to `true` and `LOCAL_WEB_SERVER_PORT` to the port of the webserver in the `config.ini` file (assumes the server is running at `localhost/{port}/v1`).
+With llama-cpp-python installed, you can start a local web server by running the following command:
+```bash
+python -m llama_cpp.server --model [path_to_model]
+```
 
 Also set the maximum number of tokens that the language model can output in the `config.ini` file.
 
