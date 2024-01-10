@@ -2,6 +2,8 @@
 
 This repository was developed in the context of the bachelor thesis "Automated Unit Test Generation with Large Language Models" by Florian Mende.
 
+For the code that was used for evaluation refer to the [evaluation repository](https://github.com/florianmende/thesis-evaluation).
+
 ## Setup
 
 ### Python requirements
