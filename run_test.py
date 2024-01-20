@@ -116,6 +116,7 @@ class TestExecuter:
             # if no outputDirectory is specified in the pom.xml, the standard directory will be used
             compile_path = self.get_standard_compile_path() if self.get_standard_compile_path() else "target"
             target_folder = f"{self.current_abs_path}/build/compiled_projects/{self.project_name}"
+            subprocess.run(f"mkdir -p {target_folder}", shell=True)
             subprocess.run(f"cp -r {self.current_abs_path}/Java_Projects/{self.project_name}/{compile_path}/* \
                             {target_folder}", shell=True)
             # remove files

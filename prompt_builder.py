@@ -66,7 +66,7 @@ class PromptBuilder:
         prompt = ""
         for code in code_list:
             if is_method:
-                prompt += "Method: " + str(code["methodIdentifier"]) + "of the class " + str(
+                prompt += "Method: " + str(code["methodIdentifier"]) + " of the class " + str(
                     code["classIdentifier"]) + ":\n"
             prompt += "```" + language_identifier + "\n"
             prompt += str(code["fullText"])

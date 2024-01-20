@@ -141,7 +141,7 @@ class DataBase:
     def get_related_methods_of_method(self, method_id):
         self.cursor.execute(""" SELECT *
                                 FROM methods
-                                JOIN relatedMethodsOfMethod ON methods.methodId = relatedMethodsOfMethod.methodIdSource
+                                JOIN relatedMethodsOfMethod ON methods.methodId = relatedMethodsOfMethod.methodIdTarget
                                 WHERE relatedMethodsOfMethod.methodIdSource = ?""", (method_id,))
         result = self.cursor.fetchall()
         result_list = []

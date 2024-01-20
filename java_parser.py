@@ -164,10 +164,14 @@ class JavaCodeParser:
         class_header_end_byte = None
         # reverse to get the last constructor declaration
         for node in class_body.children:
-            if node.type == "constructor_declaration":
+            if node.type == "constructor_declaration" or node.type == "field_declaration":
                 class_header_end_byte = node.end_byte - class_node.start_byte
 
-        class_header = class_node.text[0:class_header_end_byte].decode("utf-8")
+        # if there is no constructor declaration, we take the last
+        if class_header_end_byte is not None:
+            class_header = class_node.text[0:class_header_end_byte].decode("utf-8")
+        else:
+            class_header = ""
 
         class_full_text = class_node.text.decode("utf-8")
 
